@@ -1,0 +1,5 @@
+{
+  "name": "hall-booking-system",
+  "description": "A modern web application for booking and managing hall reservations, featuring a monthly schedule view and an intuitive interface for a seamless user experience.",
+  "requestFramePermissions": []
+}
