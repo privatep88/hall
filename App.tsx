@@ -49,7 +49,7 @@ const App: React.FC = () => {
     const [selectedHall, setSelectedHall] = useState<Hall>(Hall.AlWaha);
     const [currentDate, setCurrentDate] = useState(new Date());
     
-    // Load saved bookings from localStorage. This is the "source of truth".
+    // Single source of truth for bookings, loaded from localStorage.
     const [bookings, setBookings] = useState<Booking[]>(() => {
         try {
             const savedBookings = localStorage.getItem('hallBookings');
@@ -60,19 +60,13 @@ const App: React.FC = () => {
         }
     });
 
-    // Draft state for unsaved changes. All UI interactions modify this state.
-    const [draftBookings, setDraftBookings] = useState<Booking[]>([]);
+    // State to track if there are changes since the last manual save confirmation.
+    const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
     
     // State for save button feedback
     const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
 
-    // Sync draft with saved state on initial load or after a manual save.
-    useEffect(() => {
-        setDraftBookings(bookings);
-    }, [bookings]);
-
-
-    // Persist the main `bookings` state to localStorage whenever it changes.
+    // Persist bookings to localStorage automatically whenever they change.
     useEffect(() => {
         try {
             localStorage.setItem('hallBookings', JSON.stringify(bookings));
@@ -96,7 +90,7 @@ const App: React.FC = () => {
     };
 
     const handleBookingClick = (bookingId: string) => {
-        const bookingToEdit = draftBookings.find(b => b.id === bookingId);
+        const bookingToEdit = bookings.find(b => b.id === bookingId);
         if (bookingToEdit) {
             setModalInfo({ isOpen: true, bookingToEdit });
         }
@@ -109,7 +103,7 @@ const App: React.FC = () => {
     const handleSaveBooking = (bookingData: Omit<Booking, 'id' | 'hallId'>) => {
         const currentHall = modalInfo.bookingToEdit ? modalInfo.bookingToEdit.hallId : selectedHall;
 
-        const hasConflict = draftBookings.some(b => {
+        const hasConflict = bookings.some(b => {
             if (modalInfo.bookingToEdit && b.id === modalInfo.bookingToEdit.id) {
                 return false; // Don't check against self when editing
             }
@@ -125,40 +119,39 @@ const App: React.FC = () => {
         }
 
         if (modalInfo.bookingToEdit) {
-            // Update draft bookings
-            setDraftBookings(draftBookings.map(b => b.id === modalInfo.bookingToEdit!.id ? { ...modalInfo.bookingToEdit!, ...bookingData } : b));
+            // Update booking
+            setBookings(bookings.map(b => b.id === modalInfo.bookingToEdit!.id ? { ...modalInfo.bookingToEdit!, ...bookingData } : b));
         } else {
-            // Create new booking in draft
+            // Create new booking
             const newBooking: Booking = {
                 ...bookingData,
                 id: new Date().toISOString(),
                 hallId: selectedHall,
             };
-            setDraftBookings([...draftBookings, newBooking]);
+            setBookings([...bookings, newBooking]);
         }
+        setHasUnsavedChanges(true);
         handleCloseModal();
     };
 
     const handleDeleteBooking = () => {
         if (modalInfo.bookingToEdit) {
-            // Delete from draft bookings
-            setDraftBookings(draftBookings.filter(b => b.id !== modalInfo.bookingToEdit!.id));
+            // Delete booking
+            setBookings(bookings.filter(b => b.id !== modalInfo.bookingToEdit!.id));
+            setHasUnsavedChanges(true);
             handleCloseModal();
         }
     };
     
-    // Manual save handler
+    // Manual save handler for user feedback
     const handleSaveChanges = () => {
         setSaveStatus('saving');
-        setBookings(draftBookings); // Commit draft changes to the main state, triggering localStorage persistence.
+        // Data is already saved automatically by the useEffect hook.
+        // This button just provides confirmation.
+        setHasUnsavedChanges(false); // Reset the change tracker
         setSaveStatus('saved');
-        setTimeout(() => setSaveStatus('idle'), 2000); // Reset status after 2 seconds
+        setTimeout(() => setSaveStatus('idle'), 2000); // Reset button text after 2 seconds
     };
-
-    // Check for unsaved changes to enable/disable the save button
-    const hasUnsavedChanges = useMemo(() => {
-        return JSON.stringify(bookings) !== JSON.stringify(draftBookings);
-    }, [bookings, draftBookings]);
 
     const handleYearChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
         const newYear = parseInt(e.target.value, 10);
@@ -186,13 +179,13 @@ const App: React.FC = () => {
             [Hall.AlDana]: 0,
         };
 
-        for (const booking of draftBookings) { // Use draft bookings for live count
+        for (const booking of bookings) { 
             if (booking.date.startsWith(yearMonthPrefix)) {
                 counts[booking.hallId]++;
             }
         }
         return counts;
-    }, [draftBookings, currentDate]);
+    }, [bookings, currentDate]);
     
     // Time slots in chronological order
     const timeSlots = ['07:30', '08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00'];
@@ -286,7 +279,7 @@ const App: React.FC = () => {
             return arabicDayNames[dayName] || dayName;
         };
     
-        const filteredBookings = draftBookings.filter(b => b.hallId === selectedHall);
+        const filteredBookings = bookings.filter(b => b.hallId === selectedHall);
         
         daysInMonth.forEach((day, index) => {
             const rowIndex = sheetData.length;
@@ -363,11 +356,13 @@ const App: React.FC = () => {
                         </a>
                     </div>
                     <div className="text-center">
+                        <p className="inline-block px-4 py-1 mb-3 border-2 border-blue-400 text-yellow-400 rounded-full text-lg font-bold shadow-md">
+                            إدارة الخدمات العامة / قسم إدارة المرافق
+                        </p>
                         <h1 className="text-2xl md:text-4xl font-bold text-white">
                             نظام حجز قاعات الاجتماعات
                         </h1>
                         <p className="mt-2 text-xl text-blue-200">شركة ساهر للخدمات الذكية</p>
-                        <p className="mt-1 text-xs text-blue-300">© {new Date().getFullYear()} SAHER FOR SMART SERVICES</p>
                     </div>
                 </div>
             </header>
@@ -466,10 +461,10 @@ const App: React.FC = () => {
                         disabled={!hasUnsavedChanges || saveStatus === 'saving'}
                         className={`inline-flex items-center justify-center gap-2 px-8 py-3 text-lg font-bold rounded-md transition-all duration-300 shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 ${
                             !hasUnsavedChanges
-                                ? 'bg-gray-400 text-gray-800 cursor-not-allowed'
+                                ? 'bg-[#152042] text-white opacity-50 cursor-not-allowed'
                                 : saveStatus === 'saved' 
                                 ? 'bg-teal-500 text-white focus:ring-teal-400'
-                                : 'bg-blue-950 text-white hover:bg-blue-800 focus:ring-blue-500'
+                                : 'bg-[#152042] text-white hover:bg-blue-900 focus:ring-blue-500'
                         }`}
                     >
                         <SaveIcon className="w-6 h-6" />
@@ -485,7 +480,7 @@ const App: React.FC = () => {
                     <ScheduleTable
                         days={daysInMonth}
                         timeSlots={timeSlots}
-                        bookings={draftBookings.filter(b => b.hallId === selectedHall)}
+                        bookings={bookings.filter(b => b.hallId === selectedHall)}
                         onCellClick={handleCellClick}
                         onBookingClick={handleBookingClick}
                     />
