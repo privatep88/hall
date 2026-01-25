@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import * as XLSX from 'xlsx';
 import { ScheduleTable } from './components/ScheduleTable';
 import { BookingModal } from './components/BookingModal';
+import { Dashboard } from './components/Dashboard';
 import { Booking, Hall } from './types';
 import { getDaysInMonth, formatToYYYYMMDD, formatDateDisplay } from './utils/dateUtils';
 import { LocationIcon, PhoneIcon, EmailIcon, HomeIcon, PalmIcon, GemIcon, PrintIcon, ChartIcon, SaveIcon } from './components/icons';
@@ -48,6 +49,7 @@ const generateInitialBookings = (): Booking[] => {
 const App: React.FC = () => {
     const [selectedHall, setSelectedHall] = useState<Hall>(Hall.AlWaha);
     const [currentDate, setCurrentDate] = useState(new Date());
+    const [currentView, setCurrentView] = useState<'calendar' | 'dashboard'>('calendar');
     
     // Single source of truth for bookings, loaded from localStorage.
     const [bookings, setBookings] = useState<Booking[]>(() => {
@@ -187,6 +189,8 @@ const App: React.FC = () => {
         return counts;
     }, [bookings, currentDate]);
     
+    const totalMonthlyBookings = Object.values(monthlyBookingCounts).reduce((sum: number, count: number) => sum + count, 0);
+
     // Time slots in chronological order
     const timeSlots = ['07:30', '08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00'];
     
@@ -356,7 +360,7 @@ const App: React.FC = () => {
                         </a>
                     </div>
                     <div className="text-center">
-                        <p className="inline-block px-4 py-1 mb-3 border-2 border-blue-400 text-yellow-400 rounded-full text-lg font-bold shadow-md">
+                        <p className="inline-block px-4 py-1 mb-3 border-2 border-[#12244d] text-yellow-400 rounded-full text-lg font-bold shadow-md">
                             إدارة الخدمات العامة / قسم إدارة المرافق
                         </p>
                         <h1 className="text-2xl md:text-4xl font-bold text-white">
@@ -371,120 +375,158 @@ const App: React.FC = () => {
                 <div className="flex flex-wrap justify-start items-center mb-4 gap-4 print:hidden">
                     {halls.map(hall => {
                         const Icon = hall.icon;
+                        const isActive = currentView === 'calendar' && selectedHall === hall.id;
                         return (
                             <button
                                 key={hall.id}
-                                onClick={() => setSelectedHall(hall.id)}
-                                className={`px-6 py-2 text-lg font-bold rounded-md border-2 transition-all duration-300 flex items-center gap-2 ${
-                                    selectedHall === hall.id
+                                onClick={() => {
+                                    setSelectedHall(hall.id);
+                                    setCurrentView('calendar');
+                                }}
+                                className={`group px-6 py-2 text-lg font-bold rounded-md border-2 transition-all duration-300 flex items-center gap-2 ${
+                                    isActive
                                         ? 'bg-blue-950 text-white border-blue-950 shadow-md'
                                         : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
                                 }`}
                             >
                                 <Icon className="w-5 h-5" />
-                                {hall.name}
+                                <span>{hall.name}</span>
+                                <span className={`mr-1 px-2.5 py-0.5 text-sm rounded-full transition-colors font-bold ${
+                                    isActive 
+                                        ? 'bg-yellow-500 text-slate-900' 
+                                        : 'bg-gray-100 text-gray-500 group-hover:bg-gray-200'
+                                }`}>
+                                    {monthlyBookingCounts[hall.id]}
+                                </span>
                             </button>
                         );
                     })}
 
-                    <div className="flex-grow"></div>
-
-                    <div className="flex items-center gap-4 flex-wrap">
-                        <div className="flex items-center gap-2">
-                            <label htmlFor="year-select" className="font-bold text-gray-700">السنة:</label>
-                            <select
-                                id="year-select"
-                                value={currentDate.getFullYear()}
-                                onChange={handleYearChange}
-                                className="bg-white border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2"
-                                aria-label="Select year"
-                            >
-                                {yearsForSelect.map(year => (
-                                    <option key={year} value={year}>{year}</option>
-                                ))}
-                            </select>
-                        </div>
-                         <div className="flex items-center gap-2">
-                            <label htmlFor="month-select" className="font-bold text-gray-700">الشهر:</label>
-                            <select
-                                id="month-select"
-                                value={currentDate.getMonth()}
-                                onChange={handleMonthChange}
-                                className="bg-white border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2"
-                                aria-label="Select month"
-                            >
-                                {months.map(month => (
-                                    <option key={month.value} value={month.value}>{month.name}</option>
-                                ))}
-                            </select>
-                        </div>
-                        <button
-                            onClick={handleExportToExcel}
-                            className="flex items-center gap-2 px-4 py-2 bg-blue-950 text-white font-bold rounded-md hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
-                        >
-                            <span>تصدير إلى Excel</span>
-                        </button>
-                        <button
-                            onClick={handlePrint}
-                            className="flex items-center gap-2 px-4 py-2 bg-blue-950 text-white font-bold rounded-md hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
-                        >
-                            <PrintIcon className="w-5 h-5" />
-                            <span>طباعة</span>
-                        </button>
-                    </div>
-                </div>
-
-                {/* Print Only Header */}
-                <div className="hidden print:block text-center mb-6">
-                    <h2 className="text-3xl font-bold text-slate-900">{halls.find(h => h.id === selectedHall)?.name}</h2>
-                    <p className="text-xl text-gray-600">{months.find(m => m.value === currentDate.getMonth())?.name} {currentDate.getFullYear()}</p>
-                </div>
-
-                <div className="mb-4 p-4 bg-[#334155] rounded-lg shadow-lg text-center border-t-4 border-[#eab308]">
-                    <h3 className="text-lg font-bold text-white mb-2 flex items-center justify-center gap-2">
-                        <ChartIcon className="w-6 h-6 text-white" />
-                        <span>إجمالي الحجوزات للشهر المحدد</span>
-                    </h3>
-                    <div className="flex justify-center items-center gap-x-8 gap-y-2 flex-wrap">
-                        {halls.map(hall => (
-                            <div key={hall.id} className="font-semibold text-white flex items-center gap-2">
-                                <span>{hall.name}: </span>
-                                <span className="bg-[#eab308] text-slate-900 px-2 py-0.5 rounded-md font-bold text-lg shadow-sm">{monthlyBookingCounts[hall.id]}</span>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-
-                <div className="my-4 text-right print:hidden">
                     <button
-                        onClick={handleSaveChanges}
-                        disabled={!hasUnsavedChanges || saveStatus === 'saving'}
-                        className={`inline-flex items-center justify-center gap-2 px-8 py-3 text-lg font-bold rounded-md transition-all duration-300 shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 ${
-                            !hasUnsavedChanges
-                                ? 'bg-[#152042] text-white opacity-50 cursor-not-allowed'
-                                : saveStatus === 'saved' 
-                                ? 'bg-teal-500 text-white focus:ring-teal-400'
-                                : 'bg-[#152042] text-white hover:bg-blue-900 focus:ring-blue-500'
+                        onClick={() => setCurrentView('dashboard')}
+                        className={`group px-6 py-2 text-lg font-bold rounded-md border-2 transition-all duration-300 flex items-center gap-2 ${
+                            currentView === 'dashboard'
+                                ? 'bg-blue-950 text-white border-blue-950 shadow-md'
+                                : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
                         }`}
                     >
-                        <SaveIcon className="w-6 h-6" />
-                        <span>
-                            {saveStatus === 'saved'
-                                ? 'تم الحفظ بنجاح!'
-                                : 'حفظ التغييرات'}
+                        <ChartIcon className="w-5 h-5" />
+                        <span>لوحة المعلومات</span>
+                        <span className={`mr-1 px-2.5 py-0.5 text-sm rounded-full transition-colors font-bold ${
+                            currentView === 'dashboard' 
+                                ? 'bg-yellow-500 text-slate-900' 
+                                : 'bg-gray-100 text-gray-500 group-hover:bg-gray-200'
+                        }`}>
+                            {totalMonthlyBookings}
                         </span>
                     </button>
+
+                    <div className="flex-grow"></div>
+
+                    {currentView === 'calendar' && (
+                        <div className="flex items-center gap-4 flex-wrap">
+                            <div className="flex items-center gap-2">
+                                <label htmlFor="year-select" className="font-bold text-gray-700">السنة:</label>
+                                <select
+                                    id="year-select"
+                                    value={currentDate.getFullYear()}
+                                    onChange={handleYearChange}
+                                    className="bg-white border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2"
+                                    aria-label="Select year"
+                                >
+                                    {yearsForSelect.map(year => (
+                                        <option key={year} value={year}>{year}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <label htmlFor="month-select" className="font-bold text-gray-700">الشهر:</label>
+                                <select
+                                    id="month-select"
+                                    value={currentDate.getMonth()}
+                                    onChange={handleMonthChange}
+                                    className="bg-white border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2"
+                                    aria-label="Select month"
+                                >
+                                    {months.map(month => (
+                                        <option key={month.value} value={month.value}>{month.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <button
+                                onClick={handleExportToExcel}
+                                className="flex items-center gap-2 px-4 py-2 bg-blue-950 text-white font-bold rounded-md hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+                            >
+                                <span>تصدير إلى Excel</span>
+                            </button>
+                            <button
+                                onClick={handlePrint}
+                                className="flex items-center gap-2 px-4 py-2 bg-blue-950 text-white font-bold rounded-md hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+                            >
+                                <PrintIcon className="w-5 h-5" />
+                                <span>طباعة</span>
+                            </button>
+                        </div>
+                    )}
                 </div>
 
-                <div className="overflow-x-auto bg-white rounded-lg shadow-lg">
-                    <ScheduleTable
-                        days={daysInMonth}
-                        timeSlots={timeSlots}
-                        bookings={bookings.filter(b => b.hallId === selectedHall)}
-                        onCellClick={handleCellClick}
-                        onBookingClick={handleBookingClick}
-                    />
-                </div>
+                {currentView === 'calendar' ? (
+                    <>
+                        {/* Print Only Header */}
+                        <div className="hidden print:block text-center mb-6">
+                            <h2 className="text-3xl font-bold text-slate-900">{halls.find(h => h.id === selectedHall)?.name}</h2>
+                            <p className="text-xl text-gray-600">{months.find(m => m.value === currentDate.getMonth())?.name} {currentDate.getFullYear()}</p>
+                        </div>
+
+                        <div className="mb-4 p-4 bg-[#334155] rounded-lg shadow-lg text-center border-b-4 border-[#eab308]">
+                            <h3 className="text-lg font-bold text-white mb-2 flex items-center justify-center gap-2">
+                                <ChartIcon className="w-6 h-6 text-white" />
+                                <span>إجمالي الحجوزات للشهر المحدد</span>
+                            </h3>
+                            <div className="flex justify-center items-center gap-x-8 gap-y-2 flex-wrap">
+                                {halls.map(hall => (
+                                    <div key={hall.id} className="font-semibold text-white flex items-center gap-2">
+                                        <span>{hall.name}: </span>
+                                        <span className="bg-[#eab308] text-slate-900 px-2 py-0.5 rounded-md font-bold text-lg shadow-sm">{monthlyBookingCounts[hall.id]}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="my-4 text-right print:hidden">
+                            <button
+                                onClick={handleSaveChanges}
+                                disabled={!hasUnsavedChanges || saveStatus === 'saving'}
+                                className={`inline-flex items-center justify-center gap-2 px-8 py-3 text-lg font-bold rounded-md transition-all duration-300 shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+                                    !hasUnsavedChanges
+                                        ? 'bg-[#152042] text-white opacity-50 cursor-not-allowed'
+                                        : saveStatus === 'saved' 
+                                        ? 'bg-teal-500 text-white focus:ring-teal-400'
+                                        : 'bg-[#152042] text-white hover:bg-blue-900 focus:ring-blue-500'
+                                }`}
+                            >
+                                <SaveIcon className="w-6 h-6" />
+                                <span>
+                                    {saveStatus === 'saved'
+                                        ? 'تم الحفظ بنجاح!'
+                                        : 'حفظ التغييرات'}
+                                </span>
+                            </button>
+                        </div>
+
+                        <div className="overflow-x-auto bg-white rounded-lg shadow-lg">
+                            <ScheduleTable
+                                days={daysInMonth}
+                                timeSlots={timeSlots}
+                                bookings={bookings.filter(b => b.hallId === selectedHall)}
+                                onCellClick={handleCellClick}
+                                onBookingClick={handleBookingClick}
+                            />
+                        </div>
+                    </>
+                ) : (
+                    <Dashboard bookings={bookings} halls={halls} />
+                )}
             </main>
 
             <footer className="bg-slate-900 text-gray-200 mt-8 rounded-t-lg shadow-lg border-t-4 border-[#eab308] print:hidden">
