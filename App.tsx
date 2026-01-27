@@ -226,9 +226,10 @@ const App: React.FC = () => {
     
     const modalInitialData = getModalInitialData();
 
-    // Generate years from 2026 to 2050
-    const startYear = 2026;
-    const endYear = 2050;
+    // Generate years dynamically from current year to current year + 25 (e.g. 2050 ish)
+    const currentYearVal = new Date().getFullYear();
+    const startYear = currentYearVal;
+    const endYear = currentYearVal + 25;
     const yearsForSelect = Array.from({ length: endYear - startYear + 1 }, (_, i) => startYear + i);
     
     const months = [
