@@ -191,14 +191,22 @@ const App: React.FC = () => {
     
     const totalMonthlyBookings = Object.values(monthlyBookingCounts).reduce((sum: number, count: number) => sum + count, 0);
 
-    // Calculate Ticker Stats
+    // Calculate Ticker Stats based on CURRENT MONTH AND YEAR
     const tickerStats = useMemo(() => {
-        const wahaTotal = bookings.filter(b => b.hallId === Hall.AlWaha).length;
-        const danaTotal = bookings.filter(b => b.hallId === Hall.AlDana).length;
+        // Define current month prefix
+        const year = currentDate.getFullYear();
+        const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+        const currentMonthPrefix = `${year}-${month}`;
+
+        // Filter bookings for the current month/year only
+        const monthlyBookings = bookings.filter(b => b.date.startsWith(currentMonthPrefix));
+
+        const wahaTotal = monthlyBookings.filter(b => b.hallId === Hall.AlWaha).length;
+        const danaTotal = monthlyBookings.filter(b => b.hallId === Hall.AlDana).length;
         
-        // Most booked department
+        // Most booked department in this month
         const deptCounts: Record<string, number> = {};
-        bookings.forEach(b => {
+        monthlyBookings.forEach(b => {
             if (b.department) {
                 const dept = b.department.trim();
                 deptCounts[dept] = (deptCounts[dept] || 0) + 1;
@@ -207,15 +215,14 @@ const App: React.FC = () => {
         const sortedDepts = Object.entries(deptCounts).sort((a, b) => b[1] - a[1]);
         const topDepartment = sortedDepts.length > 0 ? sortedDepts[0][0] : 'غير متوفر';
 
-        // Last booked department (based on ID sort assuming ISO date or sequential ID)
-        const sortedBookings = [...bookings].sort((a, b) => {
-            // If IDs are timestamps/ISO strings, simple localeCompare works desc
+        // Last booked department in this month (based on creation ID assuming ISO/Time sort)
+        const sortedBookings = [...monthlyBookings].sort((a, b) => {
             return b.id.localeCompare(a.id); 
         });
         const lastDepartment = sortedBookings.length > 0 ? sortedBookings[0].department : 'غير متوفر';
 
         return { wahaTotal, danaTotal, topDepartment, lastDepartment };
-    }, [bookings]);
+    }, [bookings, currentDate]);
 
     // Time slots in chronological order
     const timeSlots = ['07:30', '08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00'];
@@ -372,7 +379,7 @@ const App: React.FC = () => {
 
     return (
         <div className="p-4 md:p-8 min-h-screen">
-            <header className="mb-2">
+            <header className="mb-8">
                 <div className="bg-slate-900 py-4 px-6 rounded-lg shadow-lg relative border-b-4 border-[#eab308]">
                     <div className="absolute top-1/2 -translate-y-1/2 right-6 hidden md:flex print:hidden">
                         <a href="https://dashboard-rouge-rho-68.vercel.app/" className="flex items-center gap-2 px-4 py-2 text-white text-lg font-semibold rounded-lg bg-blue-800 shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 focus:ring-blue-500 transition-all duration-200">
