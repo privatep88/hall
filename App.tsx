@@ -191,6 +191,32 @@ const App: React.FC = () => {
     
     const totalMonthlyBookings = Object.values(monthlyBookingCounts).reduce((sum: number, count: number) => sum + count, 0);
 
+    // Calculate Ticker Stats
+    const tickerStats = useMemo(() => {
+        const wahaTotal = bookings.filter(b => b.hallId === Hall.AlWaha).length;
+        const danaTotal = bookings.filter(b => b.hallId === Hall.AlDana).length;
+        
+        // Most booked department
+        const deptCounts: Record<string, number> = {};
+        bookings.forEach(b => {
+            if (b.department) {
+                const dept = b.department.trim();
+                deptCounts[dept] = (deptCounts[dept] || 0) + 1;
+            }
+        });
+        const sortedDepts = Object.entries(deptCounts).sort((a, b) => b[1] - a[1]);
+        const topDepartment = sortedDepts.length > 0 ? sortedDepts[0][0] : 'غير متوفر';
+
+        // Last booked department (based on ID sort assuming ISO date or sequential ID)
+        const sortedBookings = [...bookings].sort((a, b) => {
+            // If IDs are timestamps/ISO strings, simple localeCompare works desc
+            return b.id.localeCompare(a.id); 
+        });
+        const lastDepartment = sortedBookings.length > 0 ? sortedBookings[0].department : 'غير متوفر';
+
+        return { wahaTotal, danaTotal, topDepartment, lastDepartment };
+    }, [bookings]);
+
     // Time slots in chronological order
     const timeSlots = ['07:30', '08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00'];
     
@@ -346,7 +372,7 @@ const App: React.FC = () => {
 
     return (
         <div className="p-4 md:p-8 min-h-screen">
-            <header className="mb-6">
+            <header className="mb-2">
                 <div className="bg-slate-900 py-4 px-6 rounded-lg shadow-lg relative border-b-4 border-[#eab308]">
                     <div className="absolute top-1/2 -translate-y-1/2 right-6 hidden md:flex print:hidden">
                         <a href="https://dashboard-rouge-rho-68.vercel.app/" className="flex items-center gap-2 px-4 py-2 text-white text-lg font-semibold rounded-lg bg-blue-800 shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 focus:ring-blue-500 transition-all duration-200">
@@ -371,6 +397,43 @@ const App: React.FC = () => {
                     </div>
                 </div>
             </header>
+
+            {/* News Ticker Bar */}
+            <div className="mb-6 mx-auto w-full rounded-lg overflow-hidden shadow-md flex bg-slate-800 border-x-4 border-[#eab308] print:hidden">
+                <div className="bg-[#eab308] text-slate-900 px-6 py-3 font-bold z-10 flex items-center whitespace-nowrap shadow-lg relative">
+                    <span className="ml-2 animate-pulse text-red-600">🔴</span>
+                    <span>آخر المستجدات</span>
+                    {/* Arrow to indicate flow */}
+                    <div className="absolute top-0 right-full h-full w-4 bg-[#eab308] transform skew-x-12 origin-top-right"></div>
+                </div>
+                <div className="flex-1 overflow-hidden relative flex items-center bg-slate-800">
+                    <div className="animate-marquee whitespace-nowrap flex items-center gap-12 text-white text-lg font-medium px-4">
+                        <div className="flex items-center gap-2">
+                            <GemIcon className="w-5 h-5 text-yellow-400" />
+                            <span>إجمالي حجوزات قاعة الدانة:</span>
+                            <span className="text-[#eab308] font-bold">{tickerStats.danaTotal}</span>
+                        </div>
+                        <span className="text-slate-500 text-xl">|</span>
+                        <div className="flex items-center gap-2">
+                            <PalmIcon className="w-5 h-5 text-green-400" />
+                            <span>إجمالي حجوزات قاعة الواحة:</span>
+                            <span className="text-[#eab308] font-bold">{tickerStats.wahaTotal}</span>
+                        </div>
+                        <span className="text-slate-500 text-xl">|</span>
+                        <div className="flex items-center gap-2">
+                            <ChartIcon className="w-5 h-5 text-blue-400" />
+                            <span>الإدارة الأكثر حجزاً:</span>
+                            <span className="text-[#eab308] font-bold">{tickerStats.topDepartment}</span>
+                        </div>
+                        <span className="text-slate-500 text-xl">|</span>
+                        <div className="flex items-center gap-2">
+                            <span className="bg-blue-600 text-xs px-2 py-0.5 rounded text-white">جديد</span>
+                            <span>آخر إدارة قامت بالحجز:</span>
+                            <span className="text-[#eab308] font-bold">{tickerStats.lastDepartment}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
             
             <main>
                 <div className="flex flex-wrap justify-start items-center mb-4 gap-4 print:hidden">
