@@ -388,10 +388,10 @@ const App: React.FC = () => {
                         </a>
                     </div>
                      <div className="absolute top-1/2 -translate-y-1/2 left-6 hidden md:flex print:hidden">
-                        <a href="mailto:Logistic@saher.ae" className="flex items-center gap-2 px-4 py-2 text-white text-lg font-semibold rounded-lg bg-blue-800 shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 focus:ring-blue-500 transition-all duration-200">
+                        <div className="flex items-center gap-2 px-4 py-2 text-white text-lg font-semibold rounded-lg bg-blue-800 shadow-md">
                             <EmailIcon className="w-6 h-6" />
                             <span>تواصل معنا</span>
-                        </a>
+                        </div>
                     </div>
                     <div className="text-center">
                         <p className="inline-block px-4 py-1 mb-3 border-2 border-[#12244d] text-yellow-400 rounded-full text-lg font-bold shadow-md">
